@@ -10,13 +10,6 @@ class ImageProcessing
     Mat image;
     char *imageType=NULL;
 
-    //int matx[3][3]={-1,0,1,-2,0,2,-1,0,1};
-    //int maty[3][3]={1,2,1,0,0,0,-1,-2,-1};
-    //int x_cd[9]={-1,-1,-1,1,1,1,0,0,0};
-    //int y_cd[9]={-1,0,1,-1,0,1,-1,1,0};
-
-    //helper functions
-
 public:
 
     ImageProcessing(char *path,char *type)
@@ -34,13 +27,13 @@ public:
     {
         if(type=="color")
         {
-            Mat image2(height,width,CV_8UC3,Scalar(0,0,0));
+            Mat image2(height,width,CV_8UC3,Scalar(255,255,255));
             image=image2;
         }
 
         if(type=="gray")
         {
-            Mat image2(height,width,CV_8UC1,Scalar(0));
+            Mat image2(height,width,CV_8UC1,Scalar(255));
             image=image2;
         }
         imageType=type;
@@ -49,9 +42,10 @@ public:
     int height();
     int width();
     Mat getImage();
+    char* getImageType();
     void setImage(Mat img);
-    void displayImage();
-    void saveImage();
+    ImageProcessing displayImage();
+    ImageProcessing saveImage();
     ImageProcessing toGray();
     ImageProcessing resizeImage(int height,int width,char *type);
     ImageProcessing sobel();
@@ -65,12 +59,13 @@ public:
 int main()
 {
     ImageProcessing image("sample.jpg","color");
-    //ImageProcessing image2("markedSample.jpg","color");
+    ImageProcessing image2("markedSample.jpg","color");
     //image.toGray().displayImage();
     //image.resizeImage(300,100,"color").displayImage();
    // image.mirror().displayImage();
-      image.meanFilter();
- //   image.toGray().findDifferenceImage(image2.toGray()).displayImage();
+      //image.meanFilter().displayImage();
+     // image.medianFilter().sobel().saveImage().displayImage();
+    image.findDifferenceImage(image2).displayImage();
 }
 
 int ImageProcessing::height()
@@ -81,6 +76,11 @@ int ImageProcessing::height()
 int ImageProcessing::width()
 {
     return image.cols;
+}
+
+char* ImageProcessing::getImageType()
+{
+    return imageType;
 }
 
 Mat ImageProcessing::getImage()
@@ -103,16 +103,18 @@ ImageProcessing ImageProcessing::toGray()
     return grayImage;
 }
 
-void ImageProcessing::displayImage()
+ImageProcessing ImageProcessing::displayImage()
 {
     namedWindow("Image");
     imshow("Image",image);
     waitKey(0);
+    return *this;
 }
 
-void ImageProcessing::saveImage()
+ImageProcessing ImageProcessing::saveImage()
 {
     imwrite("image.jpg",image);
+    return *this;
 }
 
 ImageProcessing ImageProcessing::resizeImage(int height,int width,char *type)
@@ -185,33 +187,49 @@ ImageProcessing ImageProcessing::mirror()
     }
     return mirrorImage;
 }
-/*
+
 ImageProcessing ImageProcessing::findDifferenceImage(ImageProcessing targetImage)
 {
+    //Need to fix bugs
+    Mat original;
+    Mat target;
 
-    //need to fix bugs
-    Mat target=targetImage.getImage();
+    if(imageType=="color")
+        original=toGray().getImage();
+    else
+        original=getImage();
 
-    ImageProcessing outputImage(image.rows,image.cols,"gray");
+    char* targetImageType=targetImage.getImageType();
+
+    if(targetImageType=="color")
+        target=targetImage.toGray().getImage();
+    else
+        target=targetImage.getImage();
+
+    ImageProcessing outputImage(original.rows,original.cols,"gray");
     Mat output=outputImage.getImage();
-    for(int i=0;i<image.rows;i++)
-        for(int j=0;j<image.cols;j++)
+
+    for(int i=0;i<original.rows;i++)
+        for(int j=0;j<original.cols;j++)
     {
-        Scalar intensity1=image.at<uchar>(i,j);
+        Scalar intensity1=original.at<uchar>(i,j);
         Scalar intensity2=target.at<uchar>(i,j);
         if(intensity1.val[0]!=intensity2.val[0])
-        output.at<uchar>(i,j)=255;
+        output.at<uchar>(i,j)=0;
     }
     return outputImage;
 }
-*/
+
 ImageProcessing ImageProcessing::meanFilter()
 {
-    Mat img=toGray().getImage();
+    Mat img;
+    if(imageType=="color")
+        img=toGray().getImage();
+    else
+        img=getImage();
 
     ImageProcessing filteredImage(img.rows,img.cols,"gray");
     Mat targetImage=filteredImage.getImage();
-    //filteredImage.displayImage();
 
     int x_cd[8]={-1,-1,-1,1,1,1,0,0};
     int y_cd[8]={-1,0,1,-1,0,1,-1,1};
@@ -230,4 +248,112 @@ ImageProcessing ImageProcessing::meanFilter()
     targetImage.at<uchar>(i,j)=value;
     }
     return filteredImage;
+}
+
+ImageProcessing ImageProcessing::medianFilter()
+{
+    Mat img;
+    if(imageType=="color")
+        img=toGray().getImage();
+    else
+        img=getImage();
+
+    ImageProcessing filteredImage(img.rows,img.cols,"gray");
+    Mat targetImage=filteredImage.getImage();
+
+    int x_cd[8]={-1,-1,-1,1,1,1,0,0};
+    int y_cd[8]={-1,0,1,-1,0,1,-1,1};
+    int arr[8];
+
+    for(int i=1;i<img.rows-1;i++)
+    for(int j=1;j<img.cols-1;j++)
+    {
+    int value=0;
+    Scalar intensity;
+    int p;
+    for(int k=0;k<8;k++)
+    {
+        intensity=img.at<uchar>(i+x_cd[k],j+y_cd[k]);
+        p=k-1;
+        while(p>=0&&arr[p]>intensity[0])
+        {
+            arr[p+1]=arr[p];
+            p--;
+        }
+        arr[p+1]=intensity[0];
+    }
+    value=(arr[4]+arr[3])/2;
+    targetImage.at<uchar>(i,j)=value;
+    }
+    return filteredImage;
+}
+
+ImageProcessing ImageProcessing::sobel()
+{
+    Mat img;
+    if(imageType=="color")
+        img=toGray().getImage();
+    else
+        img=getImage();
+
+    ImageProcessing imageWithEdges(img.rows,img.cols,"gray");
+    Mat targetImage=imageWithEdges.getImage();
+
+    int matx[3][3]={-1,0,1,-2,0,2,-1,0,1};
+    int maty[3][3]={1,2,1,0,0,0,-1,-2,-1};
+    int x_cd[9]={-1,-1,-1,1,1,1,0,0,0};
+    int y_cd[9]={-1,0,1,-1,0,1,-1,0,1};
+
+    for(int i=1;i<img.rows-1;i++)
+    for(int j=1;j<img.cols-1;j++)
+    {
+       int sumX=0;
+       int sumY=0;
+       Scalar intensity;
+
+       for(int k=0;k<9;k++)
+        {
+            intensity=img.at<uchar>(i+x_cd[k],j+y_cd[k]);
+            sumX=sumX+intensity[0]*matx[1+x_cd[k]][1+y_cd[k]];
+            sumY=sumY+intensity[0]*maty[1+x_cd[k]][1+y_cd[k]];
+        }
+       targetImage.at<uchar>(i,j)=sqrt(sumX*sumX+sumY*sumY);
+    }
+
+    return imageWithEdges;
+}
+
+ImageProcessing ImageProcessing::prewitt()
+{
+    Mat img;
+    if(imageType=="color")
+        img=toGray().getImage();
+    else
+        img=getImage();
+
+    ImageProcessing imageWithEdges(img.rows,img.cols,"gray");
+    Mat targetImage=imageWithEdges.getImage();
+
+    int matx[3][3]={-1,0,1,-1,0,1,-1,0,1};
+    int maty[3][3]={-1,-1,-1,0,0,0,1,1,1};
+    int x_cd[9]={-1,-1,-1,1,1,1,0,0,0};
+    int y_cd[9]={-1,0,1,-1,0,1,-1,0,1};
+
+    for(int i=1;i<img.rows-1;i++)
+    for(int j=1;j<img.cols-1;j++)
+    {
+       int sumX=0;
+       int sumY=0;
+       Scalar intensity;
+
+       for(int k=0;k<9;k++)
+        {
+            intensity=img.at<uchar>(i+x_cd[k],j+y_cd[k]);
+            sumX=sumX+intensity[0]*matx[1+x_cd[k]][1+y_cd[k]];
+            sumY=sumY+intensity[0]*maty[1+x_cd[k]][1+y_cd[k]];
+        }
+       targetImage.at<uchar>(i,j)=sqrt(sumX*sumX+sumY*sumY);
+    }
+
+    return imageWithEdges;
 }
