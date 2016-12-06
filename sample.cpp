@@ -59,13 +59,13 @@ public:
 int main()
 {
     ImageProcessing image("sample.jpg","color");
-    ImageProcessing image2("markedSample.jpg","color");
+    //ImageProcessing image2("markedSample.jpg","color");
     //image.toGray().displayImage();
     //image.resizeImage(300,100,"color").displayImage();
    // image.mirror().displayImage();
       //image.meanFilter().displayImage();
-     // image.medianFilter().sobel().saveImage().displayImage();
-    image.findDifferenceImage(image2).displayImage();
+      image.medianFilter().sobel().saveImage().displayImage();
+    //image.findDifferenceImage(image2).displayImage();
 }
 
 int ImageProcessing::height()
