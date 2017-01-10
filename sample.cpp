@@ -45,7 +45,7 @@ public:
     char* getImageType();
     void setImage(Mat img);
     ImageProcessing displayImage();
-    ImageProcessing saveImage();
+    ImageProcessing saveImage(char*);
     ImageProcessing toGray();
     ImageProcessing resizeImage(int height,int width,char *type);
     ImageProcessing sobel();
@@ -54,18 +54,29 @@ public:
     ImageProcessing findDifferenceImage(ImageProcessing);
     ImageProcessing meanFilter();
     ImageProcessing medianFilter();
+    ImageProcessing grayHistogram();
+    ImageProcessing colorHistogram();
+    ImageProcessing simpleThreshold(int);
+    ImageProcessing imageDilation(int,int);
+    ImageProcessing imageErosion(int,int);
 };
 
 int main()
 {
     ImageProcessing image("sample.jpg","color");
+    //ImageProcessing img2(100,100,"gray");
+    //img2.displayImage();
     //ImageProcessing image2("markedSample.jpg","color");
     //image.toGray().displayImage();
-    //image.resizeImage(300,100,"color").displayImage();
-   // image.mirror().displayImage();
-      //image.meanFilter().displayImage();
-      image.medianFilter().sobel().saveImage().displayImage();
+    //image.resizeImage(600,600,"color").displayImage();
+    //image.mirror().displayImage();
+    //image.meanFilter().displayImage();
+    // image.medianFilter().sobel().saveImage().displayImage();
     //image.findDifferenceImage(image2).displayImage();
+    //image.colorHistogram().displayImage();
+    //image.medianFilter().simpleThreshold(90).displayImage();
+    image.toGray().simpleThreshold(90).imageDilation(17,17).imageErosion(17,17).displayImage().saveImage("morph.jpg");
+    return 0;
 }
 
 int ImageProcessing::height()
@@ -111,9 +122,9 @@ ImageProcessing ImageProcessing::displayImage()
     return *this;
 }
 
-ImageProcessing ImageProcessing::saveImage()
+ImageProcessing ImageProcessing::saveImage(char* name)
 {
-    imwrite("image.jpg",image);
+    imwrite(name,image);
     return *this;
 }
 
@@ -356,4 +367,207 @@ ImageProcessing ImageProcessing::prewitt()
     }
 
     return imageWithEdges;
+}
+
+ImageProcessing ImageProcessing::grayHistogram()
+{
+    Mat img;
+    if(imageType=="color")
+    {
+        img=toGray().getImage();
+    }
+    else
+    {
+        img=getImage();
+    }
+    int hist[256]={0};
+    for(int i=0;i<img.rows;i++)
+        for(int j=0;j<img.cols;j++)
+    {
+        Scalar intensity=img.at<uchar>(i,j);
+        uchar index=intensity[0];
+        hist[index]=hist[index]+1;
+    }
+
+    ImageProcessing histogram(img.rows,img.cols,"gray");
+    Mat histogramImage=histogram.getImage();
+
+    for(int i=0;i<256;i++)
+    {
+        int startRow=200;
+        int startCol=300;
+        for(int j=0;j<hist[i]/100;j++)
+        {
+            histogramImage.at<uchar>(startRow,startCol+i)=0;
+            startRow--;
+        }
+    }
+    return histogram;
+}
+
+ImageProcessing ImageProcessing::colorHistogram()
+{
+    Mat img=getImage();
+
+    int r_hist[256]={0};
+    int g_hist[256]={0};
+    int b_hist[256]={0};
+
+    for(int i=0;i<img.rows;i++)
+        for(int j=0;j<img.cols;j++)
+    {
+        Vec3b intensity=img.at<Vec3b>(i,j);
+        uchar b_index=intensity[0];
+        uchar g_index=intensity[1];
+        uchar r_index=intensity[2];
+
+        b_hist[b_index]=b_hist[b_index]+1;
+        g_hist[g_index]=g_hist[g_index]+1;
+        r_hist[r_index]=r_hist[r_index]+1;
+    }
+
+    ImageProcessing histogram(1500,1000,"gray");
+    Mat histogramImage=histogram.getImage();
+
+    for(int i=0;i<256;i++)
+    {
+        int startRow=400;
+        int startCol=50;
+        for(int j=0;j<b_hist[i]/100;j++)
+        {
+            histogramImage.at<uchar>(startRow,startCol+i)=0;
+            startRow--;
+        }
+    }
+
+    for(int i=0;i<256;i++)
+    {
+        int startRow=400;
+        int startCol=350;
+        for(int j=0;j<g_hist[i]/100;j++)
+        {
+            histogramImage.at<uchar>(startRow,startCol+i)=0;
+            startRow--;
+        }
+    }
+
+    for(int i=0;i<256;i++)
+    {
+        int startRow=400;
+        int startCol=650;
+        for(int j=0;j<r_hist[i]/100;j++)
+        {
+            histogramImage.at<uchar>(startRow,startCol+i)=0;
+            startRow--;
+        }
+    }
+    return histogram;
+}
+
+ImageProcessing ImageProcessing::simpleThreshold(int threshold)
+{
+    ImageProcessing newImage(image.rows,image.cols,"gray");
+    Mat img=newImage.getImage();
+
+    for(int i=0;i<image.rows;i++)
+        for(int j=0;j<image.cols;j++)
+    {
+        if(image.at<uchar>(i,j)<threshold)
+        {
+            img.at<uchar>(i,j)=0;
+        }
+        else
+        {
+            img.at<uchar>(i,j)=255;
+        }
+    }
+    return newImage;
+}
+
+ImageProcessing ImageProcessing::imageDilation(int row,int col)
+{
+    int struc_element[row][col];
+
+    int midx=row/2;
+    int midy=col/2;
+    bool flag=false;
+    ImageProcessing newImage(image.rows,image.cols,"gray");
+    Mat img=newImage.getImage();
+    for(int i=midx;i<image.rows-midx;i++)
+    {
+        for(int j=midy;j<image.cols-midy;j++)
+        {
+        //0:Object , 255:Background
+        if(image.at<uchar>(i,j)==255)
+        {
+            for(int p=i-midx;p<i+midx+1;p++)
+            {
+            for(int q=j-midy;q<j+midy+1;q++)
+            {
+                if(image.at<uchar>(p,q)==0)
+                {
+                    flag=true;
+                    break;
+                }
+            }
+                if(flag)
+                    break;
+            }
+            if(flag)
+                img.at<uchar>(i,j)=0;
+            else
+                img.at<uchar>(i,j)=255;
+        }
+        else
+        {
+            img.at<uchar>(i,j)=0;
+        }
+        flag=false;
+        }
+    }
+    return newImage;
+}
+
+ImageProcessing ImageProcessing::imageErosion(int row,int col)
+{
+    int struc_element[row][col];
+
+    int midx=row/2;
+    int midy=col/2;
+    bool flag=false;
+    ImageProcessing newImage(image.rows,image.cols,"gray");
+    Mat img=newImage.getImage();
+    for(int i=midx;i<image.rows-midx;i++)
+    {
+        for(int j=midy;j<image.cols-midy;j++)
+        {
+        //0:Object , 255:Background
+        if(image.at<uchar>(i,j)==0)
+        {
+            for(int p=i-midx;p<i+midx+1;p++)
+            {
+            for(int q=j-midy;q<j+midy+1;q++)
+            {
+                if(image.at<uchar>(p,q)==255)
+                {
+                    flag=true;
+                    break;
+                }
+            }
+                if(flag)
+                    break;
+            }
+            if(flag)
+                img.at<uchar>(i,j)=255;
+            else
+                img.at<uchar>(i,j)=0;
+        }
+        else
+        {
+            img.at<uchar>(i,j)=255;
+        }
+        flag=false;
+        }
+    }
+    return newImage;
 }
