@@ -59,6 +59,7 @@ public:
     ImageProcessing simpleThreshold(int);
     ImageProcessing imageDilation(int,int);
     ImageProcessing imageErosion(int,int);
+    ImageProcessing cloneImage();
 };
 
 int main()
@@ -570,4 +571,39 @@ ImageProcessing ImageProcessing::imageErosion(int row,int col)
         }
     }
     return newImage;
+}
+
+ImageProcessing ImageProcessing::cloneImage()
+{
+    int ROWS=image.rows;
+    int COLS=image.cols;
+    Mat img;
+
+    if(imageType=="gray")
+    {
+    ImageProcessing newImage=ImageProcessing(ROWS,COLS,"gray");
+    img=newImage.getImage();
+
+    for(int i=0;i<ROWS;i++)
+        for(int j=0;j<COLS;j++)
+    {
+        img.at<uchar>(i,j)=image.at<uchar>(i,j);
+    }
+    return newImage;
+    }
+    else
+    {
+    ImageProcessing newImage=ImageProcessing(ROWS,COLS,"color");
+    img=newImage.getImage();
+    for(int i=0;i<ROWS;i++)
+        for(int j=0;j<COLS;j++)
+    {
+        Vec3b intensity=image.at<Vec3b>(i,j);
+        uchar blue = intensity[0];
+        uchar green = intensity[1];
+        uchar red = intensity[2];
+        img.at<Vec3b>(i,j)={blue,green,red};
+    }
+    return newImage;
+    }
 }
